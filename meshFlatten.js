@@ -1,14 +1,13 @@
  /**
- * MeshFlatten, Three.js Mesh Flattener
- *
- * @version 0.1
- * @license MIT
- * @author  Chris McMath, http://chrismcmath.com
- * @created 2012-08-15
- * @link    http://github.com/chrismcmath/meshFlatten
- */
+ * MeshFlatten, Three.js Mesh Flattener, v0.1
 
- /*---- Unfold mesh ----*/
+	Chris McMath
+	http://chrismcmath.com
+
+	Using Gautama Dude's JS translation of Paul Bourke's intersection algorithm.
+
+ * http://github.com/chrismcmath/meshFlatten
+ */
 
 var MESHFLATTEN = MESHFLATTEN || {};
 
@@ -279,6 +278,16 @@ MESHFLATTEN.Flatten = function()
 	    var yi_prime = y2 - ry;
 
 	    return [xi, xi_prime, yi, yi_prime];
+	};
+
+	this.dot = function(v1,v2)
+	{
+
+	};
+
+	this.subtract = function(v1,v2)
+	{
+
 	};
 }
 

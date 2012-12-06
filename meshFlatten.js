@@ -60,21 +60,21 @@ MESHFLATTEN.Flatten = function()
 
 		/* ---- Get vector to previous face center ----*/
 		var opFace = faces[v3data.oppositeFace];
-		var parentFacePosition = Vector.create([(vertices[opFace.a].x + vertices[opFace.b].x + vertices[opFace.c].x)/3,
+		var parentFacePosition = [(vertices[opFace.a].x + vertices[opFace.b].x + vertices[opFace.c].x)/3,
 								(vertices[opFace.a].y + vertices[opFace.b].y + vertices[opFace.c].y)/3,
-								(vertices[opFace.a].z + vertices[opFace.b].z + vertices[opFace.c].z)/3]);
+								(vertices[opFace.a].z + vertices[opFace.b].z + vertices[opFace.c].z)/3];
 
-		var ThirdA = Vector.create([intersectData[0], intersectData[2], 0]);
-		var ThirdB = Vector.create([intersectData[1], intersectData[3], 0]);
-		var midPoint = Vector.create([(v1.x + v2.x)/2, (v1.y + v2.y)/2, 0]);
+		var ThirdA = [intersectData[0], intersectData[2], 0];
+		var ThirdB = [intersectData[1], intersectData[3], 0];
+		var midPoint = [(v1.x + v2.x)/2, (v1.y + v2.y)/2, 0];
 
-		var midToA = ThirdA.subtract(midPoint);
-		var midToB = ThirdB.subtract(midPoint);
-		var midToFaceMiddle = parentFacePosition.subtract(midPoint);
+		var midToA = scope.subtract(ThirdA,midPoint);
+		var midToB = scope.subtract(ThirdB,midPoint);
+		var midToFaceMiddle = scope.subtract(parentFacePosition,midPoint);
 
 		var v3Position = {x: 0, y: 0};
 
-		if(midToFaceMiddle.dot(midToA) < midToFaceMiddle.dot(midToB))
+		if(scope.dot(midToFaceMiddle,midToA) < scope.dot(midToFaceMiddle,midToB))
 		{
 			v3Position.x = intersectData[0];
 			v3Position.y = intersectData[2];
@@ -140,7 +140,7 @@ MESHFLATTEN.Flatten = function()
 		var remainingFaces = flatGeom.faces.slice(0);
 		remainingFaces.splice(remainingFaces.indexOf(flatGeom.faces[scope.faceRoot.index]), 1);
 
-		var leaves = getConnectedFaces(flatGeom.faces[scope.faceRoot.index], remainingFaces, flatGeom.faces);
+		var leaves = scope.getConnectedFaces(flatGeom.faces[scope.faceRoot.index], remainingFaces, flatGeom.faces);
 
 		//Remove children from the remaining faces
 		for(var i = 0; i < leaves.length; i++)
@@ -203,7 +203,7 @@ MESHFLATTEN.Flatten = function()
 				var geomData = [{vertex: v1, distance: v1Distance},{vertex: v2, distance: v2Distance},{vertex: thirdVertex, oppositeFace: node.parent}];
 				node.geomData = geomData;
 
-				var leaves = getConnectedFaces(flatGeom.faces[node.index], remainingFaces, flatGeom.faces);
+				var leaves = scope.getConnectedFaces(flatGeom.faces[node.index], remainingFaces, flatGeom.faces);
 
 				//Remove children from the remaining faces
 				for(var i = 0; i < leaves.length; i++)
@@ -280,14 +280,43 @@ MESHFLATTEN.Flatten = function()
 	    return [xi, xi_prime, yi, yi_prime];
 	};
 
+	this.getNoVerticesInCommon = function(f1, f2)
+	{
+		var vic = 0;
+
+		if(f1.a == f2.a || f1.a == f2.b || f1.a == f2.c)
+			vic++;
+		if(f1.b == f2.a || f1.b == f2.b || f1.b == f2.c)
+			vic++;
+		if(f1.c == f2.a || f1.c == f2.b || f1.c == f2.c)
+			vic++;
+
+		return vic;
+	}
+
+	this.getConnectedFaces = function(parent, remainingFaces, allFaces)
+	{
+		var children = [];
+		for(var i = 0; i < remainingFaces.length; i++)
+		{
+			if(scope.getNoVerticesInCommon(parent,remainingFaces[i]) >= 2)
+			{
+				children.push(allFaces.indexOf(remainingFaces[i]));
+			}
+		}
+		return children;
+	}
+
 	this.dot = function(v1,v2)
 	{
-
+		return v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2];
 	};
 
 	this.subtract = function(v1,v2)
 	{
-
+		var result = [v1[0]-v2[0],
+					v1[1]-v2[1],
+					v1[2]-v2[2]];
 	};
 }
 

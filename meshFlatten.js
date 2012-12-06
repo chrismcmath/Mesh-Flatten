@@ -1,5 +1,6 @@
  /**
- * MeshFlatten, Three.js Mesh Flattener, v0.1
+ * MeshFlatten v0.1
+ * Three.js Mesh Flattener
 
 	Chris McMath
 	http://chrismcmath.com
@@ -11,35 +12,17 @@
 
 var MESHFLATTEN = MESHFLATTEN || {};
 
-MESHFLATTEN.Flatten = function()
+MESHFLATTEN.Flatten = function(flatGeom)
 {
 	var scope = this;
 	this.faceRoot = null;
+	this.mesh = flatGeom;
 	this.alteredVertices = [];
-
-	this.flattenMesh = function(flatGeom)
-	{
-		/*------ Create the mesh tree --------*/
-		scope.faceRoot = scope.createTreeNode(flatGeom);
-
-		/*------ Rebuild mesh (first face is manually flattened) --------*/
-		flatGeom.vertices[flatGeom.faces[scope.faceRoot.index].a].z = 0;
-		flatGeom.vertices[flatGeom.faces[scope.faceRoot.index].b].z = 0;
-		flatGeom.vertices[flatGeom.faces[scope.faceRoot.index].c].z = 0;
-
-		scope.alteredVertices.push(flatGeom.faces[scope.faceRoot.index].a);
-		scope.alteredVertices.push(flatGeom.faces[scope.faceRoot.index].b);
-		scope.alteredVertices.push(flatGeom.faces[scope.faceRoot.index].c);
-
-		for(var i = 0; i < scope.faceRoot.leaves.length; i++)
-		{
-			scope.rebuildNode(scope.faceRoot.leaves[i], flatGeom.faces, flatGeom.vertices);
-		}
-	}
+	this.unflattenedVertices = new Array(flatGeom.vertices.length);
+	this.flattenedVertices = new Array(flatGeom.vertices.length);
 
 	this.rebuildNode = function(node, faces, vertices)
 	{
-		// debugger;
 		var v1data = node.geomData[0];
 		var v2data = node.geomData[1];
 		var v3data = node.geomData[2];
@@ -78,7 +61,7 @@ MESHFLATTEN.Flatten = function()
 		{
 			v3Position.x = intersectData[0];
 			v3Position.y = intersectData[2];
-			vertices[v3data.vertex].z = 0;
+			scope.flattenedVertices[v3data.vertex].z = 0;
 		}
 		else
 		{
@@ -89,17 +72,17 @@ MESHFLATTEN.Flatten = function()
 		//Only unfold a vertex which has yet to be unfolded, else stretch
 		if(scope.alteredVertices.indexOf(v3data.vertex) == -1)
 		{
-			vertices[v3data.vertex].x = v3Position.x;
-			vertices[v3data.vertex].y = v3Position.y;
-			vertices[v3data.vertex].z = 0;
+			scope.flattenedVertices[v3data.vertex].x = v3Position.x;
+			scope.flattenedVertices[v3data.vertex].y = v3Position.y;
+			scope.flattenedVertices[v3data.vertex].z = 0;
 
 			scope.alteredVertices.push(v3data.vertex);
 		}
 		else
 		{
-			vertices[v3data.vertex].x = (v3Position.x + vertices[v3data.vertex].x)/2;
-			vertices[v3data.vertex].y = (v3Position.y + vertices[v3data.vertex].y)/2;
-			vertices[v3data.vertex].z = 0;
+			scope.flattenedVertices[v3data.vertex].x = (v3Position.x + vertices[v3data.vertex].x)/2;
+			scope.flattenedVertices[v3data.vertex].y = (v3Position.y + vertices[v3data.vertex].y)/2;
+			scope.flattenedVertices[v3data.vertex].z = 0;
 		}
 
 		for(var i = 0; i < node.leaves.length; i++)
@@ -225,6 +208,18 @@ MESHFLATTEN.Flatten = function()
 		return scope.faceRoot;
 	};
 
+	this.unfold = function (fraction)
+	{
+		for(var i = 0; i < scope.unflattenedVertices.length; i++)
+		{
+			scope.mesh.vertices[i].x = scope.unflattenedVertices[i].x + (scope.flattenedVertices[i].x - scope.unflattenedVertices[i].x)*fraction;
+			scope.mesh.vertices[i].y = scope.unflattenedVertices[i].y + (scope.flattenedVertices[i].y - scope.unflattenedVertices[i].y)*fraction;
+			scope.mesh.vertices[i].z = scope.unflattenedVertices[i].z + (scope.flattenedVertices[i].z - scope.unflattenedVertices[i].z)*fraction;
+		}
+		scope.mesh.verticesNeedUpdate = true;
+	};
+
+	/*-------- Utility classes --------*/
 	this.intersection = function(x0, y0, r0, x1, y1, r1) {
 	    var a, dx, dy, d, h, rx, ry;
 	    var x2, y2;
@@ -279,7 +274,6 @@ MESHFLATTEN.Flatten = function()
 
 	    return [xi, xi_prime, yi, yi_prime];
 	};
-
 	this.getNoVerticesInCommon = function(f1, f2)
 	{
 		var vic = 0;
@@ -292,8 +286,7 @@ MESHFLATTEN.Flatten = function()
 			vic++;
 
 		return vic;
-	}
-
+	};
 	this.getConnectedFaces = function(parent, remainingFaces, allFaces)
 	{
 		var children = [];
@@ -305,19 +298,51 @@ MESHFLATTEN.Flatten = function()
 			}
 		}
 		return children;
-	}
-
+	};
 	this.dot = function(v1,v2)
 	{
 		return v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2];
 	};
-
 	this.subtract = function(v1,v2)
 	{
 		var result = [v1[0]-v2[0],
 					v1[1]-v2[1],
 					v1[2]-v2[2]];
+		return result;
 	};
+
+	this.init = function(flatGeom)
+	{
+		/*------ Create the mesh tree --------*/
+		this.faceRoot = scope.createTreeNode(flatGeom);
+
+		/*----- Create Unflattened Mesh Lookup ------*/
+		for(var i = 0; i < flatGeom.vertices.length; i++)
+		{
+			this.unflattenedVertices[i] = {x: flatGeom.vertices[i].x,
+											y: flatGeom.vertices[i].y,
+											z: flatGeom.vertices[i].z};
+			this.flattenedVertices[i] = {x: flatGeom.vertices[i].x,
+											y: flatGeom.vertices[i].y,
+											z: flatGeom.vertices[i].z};
+		}
+
+		/*------ Rebuild mesh (first face is manually flattened) --------*/
+		this.flattenedVertices[flatGeom.faces[scope.faceRoot.index].a].z = 0;
+		this.flattenedVertices[flatGeom.faces[scope.faceRoot.index].b].z = 0;
+		this.flattenedVertices[flatGeom.faces[scope.faceRoot.index].c].z = 0;
+
+		this.alteredVertices.push(flatGeom.faces[scope.faceRoot.index].a);
+		this.alteredVertices.push(flatGeom.faces[scope.faceRoot.index].b);
+		this.alteredVertices.push(flatGeom.faces[scope.faceRoot.index].c);
+
+		for(var i = 0; i < scope.faceRoot.leaves.length; i++)
+		{
+			scope.rebuildNode(scope.faceRoot.leaves[i], flatGeom.faces, this.flattenedVertices);
+		}
+	};
+
+	this.init(flatGeom);
 }
 
 MESHFLATTEN.Flatten.prototype.constructor = MESHFLATTEN.Flatten;
